@@ -5,7 +5,10 @@ services:
     image: postgres:15-alpine
     container_name: postgres_db
     restart: unless-stopped
-    env_file: .env.example
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -26,7 +29,10 @@ services:
     image: mongo:6-jammy
     container_name: mongodb
     restart: unless-stopped
-    env_file: .env.example
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-mongo}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-mongo}
@@ -63,7 +69,10 @@ services:
       context: ./backend/auth_service
     container_name: auth_service
     restart: unless-stopped
-    env_file: .env.example
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
     ports:
       - "8000:8000"
     depends_on:
