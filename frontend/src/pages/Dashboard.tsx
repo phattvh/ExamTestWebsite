@@ -29,7 +29,7 @@ const Dashboard = () => {
       )}
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card>
             <CardContent>
               <Typography variant="h6">My Exams</Typography>
@@ -37,7 +37,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card>
             <CardContent>
               <Typography variant="h6">Recent Results</Typography>
@@ -45,7 +45,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card>
             <CardContent>
               <Typography variant="h6">Proctoring Status</Typography>
@@ -54,6 +54,19 @@ const Dashboard = () => {
               </Typography>
               <Button variant="contained" size="small" onClick={() => navigate('/camera-test')}>
                 Mở Camera Test
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Card sx={{ border: (t) => `2px solid ${t.palette.primary.main}` }}>
+            <CardContent>
+              <Typography variant="h6">VJP Pro — Quản Lý Siêu Cấp</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                App riêng cho giáo viên: tạo đề tức thì (offline-first), đồng bộ nền, speed test.
+              </Typography>
+              <Button variant="contained" size="small" onClick={() => navigate('/admin')}>
+                Mở App Quản Lý
               </Button>
             </CardContent>
           </Card>

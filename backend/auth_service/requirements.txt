@@ -9,8 +9,4 @@ passlib[bcrypt]
 bcrypt>=4.0.1,<4.1.0
 python-dotenv
 alembic
-pytest
-pytest-asyncio
-httpx
-aiosqlite
 python-multipart
