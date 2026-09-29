@@ -12,9 +12,9 @@ describe('Login Component', () => {
         </BrowserRouter>
       </AuthProvider>
     );
-    expect(screen.getByRole('heading', { name: /login/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/username \/ email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /đăng nhập/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/tên đăng nhập hoặc email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/mật khẩu/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /đăng nhập/i })).toBeInTheDocument();
   });
 });

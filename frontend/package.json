@@ -1,34 +1,68 @@
 {
-  "name": "frontend",
+  "name": "exam-system-client",
+  "version": "1.0.0",
+  "description": "ExamSystem Anti-Cheat Proctoring Desktop Client",
+  "author": "ExamSystem Team",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "test": "vitest run",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"cross-env ELECTRON_START_URL=http://localhost:5173 electron electron/main.cjs\"",
+    "electron:build": "tsc -b && vite build && electron-builder",
+    "pack": "tsc -b && vite build && node scripts/package-client.cjs"
+  },
+  "build": {
+    "appId": "com.examsystem.proctor",
+    "productName": "ExamSystem Anti-Cheat Client",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    }
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^5.7.1",
+    "@mediapipe/tasks-vision": "^1.0.1",
     "@mui/icons-material": "^9.3.0",
     "@mui/material": "^9.3.0",
+    "@mui/x-data-grid": "^9.11.0",
     "axios": "^1.19.0",
+    "es-toolkit": "^1.50.0",
+    "onnxruntime-web": "^1.27.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-hook-form": "^7.84.0",
     "react-router-dom": "^7.18.2",
+    "recharts": "^3.10.1",
+    "socket.io-client": "^4.8.3",
+    "xlsx": "^0.18.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^44.1.0",
+    "electron-builder": "^26.15.3",
     "jsdom": "^30.0.1",
     "oxlint": "^1.75.0",
     "typescript": "~6.0.2",

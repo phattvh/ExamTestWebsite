@@ -41,12 +41,21 @@ const CameraTest: React.FC = () => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      stopCamera();
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
     };
   }, [stream]);
 
+  // Attach stream to video element when stream or ref changes
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
   return (
-    <Card elevation={3} sx={{ maxWidth: 600, margin: 'auto', mt: 4 }}>
+    <Card sx={{ maxWidth: 600, margin: 'auto', mt: 4 }}>
       <CardContent>
         <Typography variant="h5" gutterBottom align="center">
           Kiểm tra Camera (WebRTC PoC)

@@ -1,17 +1,23 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
     container_name: postgres_db
     restart: unless-stopped
-    env_file: .env.example
+    # Speed: tuned for many small writes during exams (commit every ~100ms max)
+    command: >
+      postgres -c shared_buffers=256MB -c max_connections=200
+      -c synchronous_commit=off -c checkpoint_timeout=15min
+      -c wal_compression=on -c idle_in_transaction_session_timeout=30s
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-exam_db}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -26,7 +32,10 @@ services:
     image: mongo:6-jammy
     container_name: mongodb
     restart: unless-stopped
-    env_file: .env.example
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-mongo}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-mongo}
@@ -46,6 +55,8 @@ services:
     image: redis:7-alpine
     container_name: redis_cache
     restart: unless-stopped
+    # Speed: memory-limited LRU cache, no AOF fsync on the hot exam path
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --appendonly no
     ports:
       - "6379:6379"
     volumes:
@@ -63,17 +74,187 @@ services:
       context: ./backend/auth_service
     container_name: auth_service
     restart: unless-stopped
-    env_file: .env.example
+    command: sh -c "alembic upgrade head && python create_admin.py && uvicorn main:app --host 0.0.0.0 --port 8000"
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
+    environment:
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - ./backend/auth_service:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - exam_network
+
+  question_service:
+    build:
+      context: ./backend/question_service
+    container_name: question_service
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
+    ports:
+      - "8001:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend/question_service:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - exam_network
+
+  exam_service:
+    build: ./backend/exam_service
+    container_name: exam-exam-service
+    # Trước đây thiếu bước chạy migration — chỉ auth_service tự alembic upgrade khi khởi
+    # động, khiến exam_service (có bảng exam_schedules/exam_proctors/exam_collaborators/
+    # exam_roster từ các migration RBAC) không tự tạo bảng khi deploy mới, gây lỗi SQL
+    # "relation does not exist" ngay từ request đầu tiên.
+    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-exam_db}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      QUESTION_SERVICE_URL: http://question_service:8000
+    ports:
+      - "8002:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      question_service:
+        condition: service_healthy
+    volumes:
+      - ./backend/exam_service:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - exam_network
+
+  realtime_service:
+    build: ./backend/realtime_service
+    container_name: exam-realtime-service
+    environment:
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      EXAM_SERVICE_URL: http://exam_service:8000
+    ports:
+      - "8003:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      exam_service:
+        condition: service_healthy
+    volumes:
+      - ./backend/realtime_service:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - exam_network
+
+  grading_service:
+    build: ./backend/grading_service
+    container_name: exam-grading-service
+    # Đặc biệt quan trọng: migration d3456789012c thêm cột needs_manual_grading,
+    # has_pending_manual_grading,... phục vụ tính năng chấm tay tự luận — thiếu bước
+    # này thì code chấm tay sẽ lỗi SQL "column does not exist" ngay khi có người dùng.
+    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-exam_db}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      EXAM_SERVICE_URL: http://exam_service:8000
+      QUESTION_SERVICE_URL: http://question_service:8000
+    ports:
+      - "8004:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/grading_service:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - exam_network
+
+  celery_worker:
+    build: ./backend/grading_service
+    container_name: exam-celery-worker
+    command: celery -A tasks.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-exam_db}
+      REDIS_URL: redis://redis:6379
+      EXAM_SERVICE_URL: http://exam_service:8000
+      QUESTION_SERVICE_URL: http://question_service:8000
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      grading_service:
+        # Đảm bảo migration (alembic upgrade head) chạy xong trước — celery_worker dùng
+        # chung bảng với grading_service, tránh race condition đọc/ghi vào bảng/cột chưa
+        # tồn tại nếu cả 2 container khởi động đồng thời lúc deploy mới.
+        condition: service_healthy
+    volumes:
+      - ./backend/grading_service:/app
+    networks:
+      - exam_network
+
+  proctoring_service:
+    build: ./backend/proctoring_service
+    container_name: exam-proctoring-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-exam_db}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      REALTIME_SERVICE_URL: http://realtime_service:8000
+    ports:
+      - "8005:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/proctoring_service:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - exam_network
 
@@ -83,8 +264,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       auth_service:
         condition: service_healthy

@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+node_modules/
+.env
+.env.*
+!.env.example
+nginx/ssl/
+dist/
+dist-electron/
+dist-client/
+release/
+build/
+coverage/
+.pytest_cache/
+*.log
