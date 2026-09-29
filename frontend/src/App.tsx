@@ -40,6 +40,9 @@ const PageLoader = () => (
   </Box>
 );
 
+// Speed: code-split the super admin app so the main bundle stays small.
+const ExamAdminApp = lazy(() => import('./apps/exam-admin/ExamAdminApp'));
+
 function App() {
   return (
     <AuthProvider>
@@ -77,6 +80,7 @@ function App() {
               </StudentLayout>
             </RoleRoute>
           } />
+<<<<<<< HEAD
           <Route path="/student/results" element={
             <RoleRoute allowedRoles={['student', 'admin']}>
               <StudentLayout>
@@ -204,6 +208,17 @@ function App() {
             </StaffRoute>
           } />
           
+          <Route path="/admin/vjp-pro" element={
+            <StaffRoute>
+              <ExamAdminApp />
+            </StaffRoute>
+          } />
+          <Route path="/admin" element={
+            <StaffRoute>
+              <ExamAdminApp />
+            </StaffRoute>
+          } />
+
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
         </Suspense>

@@ -1,11 +1,17 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
     container_name: postgres_db
     restart: unless-stopped
-    env_file: .env
+    # Speed: tuned for many small writes during exams (commit every ~100ms max)
+    command: >
+      postgres -c shared_buffers=256MB -c max_connections=200
+      -c synchronous_commit=off -c checkpoint_timeout=15min
+      -c wal_compression=on -c idle_in_transaction_session_timeout=30s
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -26,7 +32,10 @@ services:
     image: mongo:6-jammy
     container_name: mongodb
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-mongo}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-mongo}
@@ -46,6 +55,8 @@ services:
     image: redis:7-alpine
     container_name: redis_cache
     restart: unless-stopped
+    # Speed: memory-limited LRU cache, no AOF fsync on the hot exam path
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --appendonly no
     ports:
       - "6379:6379"
     volumes:
@@ -64,7 +75,12 @@ services:
     container_name: auth_service
     restart: unless-stopped
     command: sh -c "alembic upgrade head && python create_admin.py && uvicorn main:app --host 0.0.0.0 --port 8000"
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
+    environment:
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
     ports:
       - "8000:8000"
     depends_on:
@@ -85,7 +101,10 @@ services:
       context: ./backend/question_service
     container_name: question_service
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
+      - .env.example
     ports:
       - "8001:8000"
     depends_on:

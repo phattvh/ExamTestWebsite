@@ -26,6 +26,7 @@ import {
   Person as PersonIcon,
   FiberManualRecord,
   PhotoLibrary as PhotoLibraryIcon,
+  Bolt as BoltIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -56,6 +57,7 @@ const menuGroups = [
       { text: 'Danh mục & Chủ đề', icon: <CategoryIcon fontSize="small" />, path: '/admin/categories', roles: ['admin', 'teacher'] },
       { text: 'Chấm bài tự luận', icon: <RateReviewIcon fontSize="small" />, path: '/admin/manual-grading', roles: ['admin', 'teacher'] },
       { text: 'Ảnh vi phạm sau thi', icon: <PhotoLibraryIcon fontSize="small" />, path: '/admin/violations', roles: ['admin', 'teacher'] },
+      { text: 'VJP Pro (Siêu tốc)', icon: <BoltIcon fontSize="small" />, path: '/admin/vjp-pro', roles: ['admin', 'teacher'] },
     ],
   },
   {

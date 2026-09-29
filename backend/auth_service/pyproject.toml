@@ -8,6 +8,9 @@ authors = ["Admin"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+# libtmux's pytest plugin is incompatible with pytest>=9 (marks on fixtures)
+# and is not used by this project; disable it so collection never crashes.
+addopts = "-p no:libtmux"
 
 [tool.black]
 line-length = 88
@@ -15,3 +18,9 @@ target-version = ['py310']
 
 [tool.isort]
 profile = "black"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+httpx = "*"
+aiosqlite = "*"

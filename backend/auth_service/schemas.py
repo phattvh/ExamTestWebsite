@@ -4,19 +4,23 @@ from datetime import datetime
 from uuid import UUID
 
 class UserBase(BaseModel):
-    username: str
+    username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     full_name: Optional[str] = None
 
 class UserCreate(UserBase):
-    # Trước đây không có ràng buộc độ dài nào ở backend — chỉ frontend tự kiểm tra
-    # (dễ bị bypass bằng cách gọi thẳng API, VD Postman/curl, đặt mật khẩu 1 ký tự).
-    password: str = Field(min_length=8)
+    password: str = Field(..., min_length=8, max_length=128)
     role: Optional[str] = "student"
 
 class AdminUserCreate(UserBase):
     password: Optional[str] = Field(default=None, min_length=8)
     role: Optional[str] = "student"
+
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
+    role: Optional[str] = None
 
 class PasswordChangeRequest(BaseModel):
     old_password: str
@@ -39,9 +43,6 @@ class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 class AdminUserCreateResponse(UserResponse):
-    # Chỉ có giá trị khi admin tạo user không tự đặt mật khẩu — mật khẩu tạm sinh ngẫu
-    # nhiên cần được admin thấy 1 LẦN DUY NHẤT ngay sau khi tạo để gửi lại cho người dùng
-    # (không lưu lại được sau đó vì chỉ lưu bản hash trong DB).
     temp_password: Optional[str] = None
 
 class Token(BaseModel):
@@ -52,6 +53,11 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
-class UserUpdate(BaseModel):
-    role: Optional[str] = None
-    is_active: Optional[bool] = None
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+class MessageResponse(BaseModel):
+    message: str
+
+class UserRoleUpdate(BaseModel):
+    role: str
